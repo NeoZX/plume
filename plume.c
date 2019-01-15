@@ -2,14 +2,19 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <ibase.h>
 
-#define PLUME_VERSION "0.1"
+#define PLUME_VERSION "0.2"
 
 #define ERREXIT(status, rc)	{isc_print_status(status); return rc;}
 
 #define INDEX_LEN	32
 #define INDEX_MAX	20000
+#define IDX_MAX_THREADS 1024
+
+#define ERR_DB 1
+#define ERR_MUTEX 2
 
 #define SQL_VARCHAR(len) struct {short vary_length; char vary_string[(len)+1];}
 
@@ -18,6 +23,10 @@ char *isc_user;
 char *isc_password;
 
 char idx_list[INDEX_MAX][INDEX_LEN];
+int idx_num = 0;
+pthread_mutex_t mutex_idx_num = PTHREAD_MUTEX_INITIALIZER;
+int status[IDX_MAX_THREADS];
+int threads_count = 1;
 
 short goodbye = 0;
 
@@ -30,17 +39,23 @@ void help(char *name)
            "\t-d database connections string\n"
            "\t-u username\n"
            "\t-p password\n"
+           "\t-t threads\n"
            , name);
 }
 
 void version()
 {
-    printf("Plume version " PLUME_VERSION " \n");
+    int buffer;
+    printf("Plume version " PLUME_VERSION "\n");
+    printf("Restrictions:\n");
+    printf("\tmax index name length %d\n", buffer = INDEX_LEN);
+    printf("\tmax index counts %d\n", buffer = INDEX_MAX);
+    printf("\tmax threads %d\n", buffer = IDX_MAX_THREADS);
 }
 
 int parse(int argc, char *argv[])
 {
-    char *opts = "hvd:u:p:";
+    char *opts = "hvd:u:p:t:";
     int opt;
     while((opt = getopt(argc, argv, opts)) != -1)
     {
@@ -63,6 +78,13 @@ int parse(int argc, char *argv[])
         case 'p':
             isc_password = optarg;
             break;
+        case 't':
+            threads_count = atoi(optarg);
+            if (threads_count > IDX_MAX_THREADS) {
+                threads_count = IDX_MAX_THREADS;
+                printf("Threads count reduced to %d\n", IDX_MAX_THREADS);
+            }
+            break;
         }
     }
     return 0;
@@ -76,7 +98,7 @@ int get_index_list()
 	isc_db_handle		db = 0L;
 	isc_tr_handle		trans = 0L;
 	isc_stmt_handle		stmt = 0L;
-	ISC_STATUS_ARRAY	status;
+	ISC_STATUS_ARRAY	db_status;
 	XSQLDA			    *sqlda;
 	long			    fetch_stat;
 	char			    *sel_str =
@@ -101,15 +123,15 @@ int get_index_list()
 		NULL);
 
 	//Connect to database
-	if (isc_attach_database(status, 0, isc_database, &db, dpb_length, dpb))
+	if (isc_attach_database(db_status, 0, isc_database, &db, dpb_length, dpb))
 	{
-		ERREXIT(status, 1);
+		ERREXIT(db_status, 1);
 	}
 
 	//start transaction
-	if (isc_start_transaction(status, &trans, 1, &db, 0, NULL))
+	if (isc_start_transaction(db_status, &trans, 1, &db, 0, NULL))
 	{
-		isc_print_status(status);
+		isc_print_status(db_status);
 	}
 
 	/* Allocate an output SQLDA. */
@@ -119,15 +141,15 @@ int get_index_list()
 	sqlda->version = 1;
 
 	//Create statement
-	if (isc_dsql_allocate_statement(status, &db, &stmt))
+	if (isc_dsql_allocate_statement(db_status, &db, &stmt))
 	{
-		ERREXIT(status, 1);
+		ERREXIT(db_status, 1);
 	}
 
 	//Prepare statement
-	if (isc_dsql_prepare(status, &trans, &stmt, 0, sel_str, 1, sqlda))
+	if (isc_dsql_prepare(db_status, &trans, &stmt, 0, sel_str, 1, sqlda))
 	{
-		ERREXIT(status, 1);
+		ERREXIT(db_status, 1);
 	}
 
 	sqlda->sqlvar[0].sqldata = (char *)&idx_name;
@@ -135,13 +157,13 @@ int get_index_list()
 	sqlda->sqlvar[0].sqlind  = &flag0;
 
 	//Execute statement
-	if (isc_dsql_execute(status, &trans, &stmt, 1, NULL))
+	if (isc_dsql_execute(db_status, &trans, &stmt, 1, NULL))
 	{
-		ERREXIT(status, 1);
+		ERREXIT(db_status, 1);
 	}
 
 	//Примечание: если использовать как строку, тогда терминировать '\0'
-	while ((fetch_stat = isc_dsql_fetch(status, &stmt, 1, sqlda)) == 0)
+	while ((fetch_stat = isc_dsql_fetch(db_status, &stmt, 1, sqlda)) == 0)
 	{
 		memcpy(idx_list[idx_num], idx_name.vary_string, idx_name.vary_length);
 		idx_list[idx_num][INDEX_LEN-1] = '\0';
@@ -153,25 +175,25 @@ int get_index_list()
 
 	if (fetch_stat != 100L)
 	{
-		ERREXIT(status, 1);
+		ERREXIT(db_status, 1);
 	}
 
 	//Free statement
-	if (isc_dsql_free_statement(status, &stmt, DSQL_close))
+	if (isc_dsql_free_statement(db_status, &stmt, DSQL_close))
 	{
-		ERREXIT(status, 1)
+		ERREXIT(db_status, 1)
 	}
 
 	//Commit transaction
-	if (isc_commit_transaction(status, &trans))
+	if (isc_commit_transaction(db_status, &trans))
 	{
-		ERREXIT(status, 1);
+		ERREXIT(db_status, 1);
 	}
 
 	//Close
-	if (isc_detach_database(status, &db))
+	if (isc_detach_database(db_status, &db))
 	{
-		ERREXIT(status, 1);
+		ERREXIT(db_status, 1);
 	}
 
 	free(sqlda);
@@ -179,17 +201,19 @@ int get_index_list()
     return 0;
 }
 
-int activate_index()
+void * activate_index(void *thr_id_ptr)
 {
 	//Database var
 	char			    dpb_buffer[256], *dpb;
 	short		    	dpb_length = 0L;
 	isc_db_handle		db = 0L;
 	isc_tr_handle		trans = 0L;
-	ISC_STATUS_ARRAY	status;
+	ISC_STATUS_ARRAY	db_status;
 	char			    upd_str[256] = "";
 
-	int idx_num = 0;
+	int thr_id = (int) thr_id_ptr;
+	int idx_num_thread = 0;
+	int mutex_status = 0;
 
     //Some magic... i can't understand this magic yet
 	dpb = dpb_buffer;
@@ -206,42 +230,87 @@ int activate_index()
 		NULL);
 
 	//Connect to database
-	if (isc_attach_database(status, 0, isc_database, &db, dpb_length, dpb))
+	if (isc_attach_database(db_status, 0, isc_database, &db, dpb_length, dpb))
 	{
-		ERREXIT(status, 1);
+	    isc_print_status(db_status);
+	    status[thr_id] = ERR_DB;
+	    return thr_id_ptr;
 	}
 
-    while((*idx_list[idx_num]) && (idx_num < INDEX_MAX))
+    //lock idx_num
+    mutex_status = pthread_mutex_lock(&mutex_idx_num);
+    if (mutex_status != 0)
     {
-        printf("Activate index %s\n", idx_list[idx_num]);
+        fprintf(stderr, "Error %d lock mutex\n", mutex_status);
+	    status[thr_id] = ERR_MUTEX;
+	    return thr_id_ptr;
+    }
+
+	idx_num_thread = idx_num++;
+
+	//unlock  idx_num
+    mutex_status = pthread_mutex_unlock(&mutex_idx_num);
+    if (mutex_status != 0)
+    {
+        fprintf(stderr, "Error %d unlock mutex\n", mutex_status);
+	    status[thr_id] = ERR_MUTEX;
+	    return thr_id_ptr;
+    }
+
+    while((*idx_list[idx_num_thread]) && (idx_num_thread < INDEX_MAX))
+    {
+        //printf("Activate index %s\n", idx_list[idx_num_thread]);
 
         //start transaction
         trans = 0L;
-        if (isc_start_transaction(status, &trans, 1, &db, 0, NULL))
+        if (isc_start_transaction(db_status, &trans, 1, &db, 0, NULL))
         {
-            isc_print_status(status);
+            printf("Warning trouble on index %s:\n", idx_list[idx_num_thread]);
+            isc_print_status(db_status);
         }
 
         //did not master the parameterized query
         strcpy(upd_str, "alter index ");
-        strcat(upd_str, idx_list[idx_num]);
+        strcat(upd_str, idx_list[idx_num_thread]);
         strcat(upd_str, " active;");
 
-        isc_dsql_exec_immed2(status, &db, &trans, 0, upd_str, SQL_DIALECT_CURRENT, NULL, NULL);
-        isc_print_status(status);
+        isc_dsql_exec_immed2(db_status, &db, &trans, 0, upd_str, SQL_DIALECT_CURRENT, NULL, NULL);
+        isc_print_status(db_status);
 
         //Commit transaction
-        if (isc_commit_transaction(status, &trans))
+        if (isc_commit_transaction(db_status, &trans))
         {
-            ERREXIT(status, 1);
+            isc_print_status(db_status);
+            status[thr_id] = ERR_DB;
+            return thr_id_ptr;
         }
-        idx_num++;
+        //lock idx_num
+        mutex_status = pthread_mutex_lock(&mutex_idx_num);
+        if (mutex_status != 0)
+        {
+            fprintf(stderr, "Error %d lock mutex\n", mutex_status);
+            status[thr_id] = ERR_MUTEX;
+            return thr_id_ptr;
+        }
+
+        idx_num_thread = idx_num++;
+
+        //unlock  idx_num
+        mutex_status = pthread_mutex_unlock(&mutex_idx_num);
+        if (mutex_status != 0)
+        {
+            fprintf(stderr, "Error %d unlock mutex\n", mutex_status);
+            status[thr_id] = ERR_MUTEX;
+            return thr_id_ptr;
+        }
     }
 
 	//Close datatabase attac
-	if (isc_detach_database(status, &db))
+	if (isc_detach_database(db_status, &db))
 	{
-		ERREXIT(status, 1);
+        isc_print_status(db_status);
+        status[thr_id] = ERR_DB;
+        return thr_id_ptr;
 	}
 
     return 0;
@@ -249,7 +318,9 @@ int activate_index()
 
 int main(int argc, char *argv[])
 {
-    int err;
+    pthread_t thr_act_idx[IDX_MAX_THREADS];
+    int err = 0;
+    int current_thread;
 
     //Parse arguments
 	if (argc == 1)
@@ -269,9 +340,27 @@ int main(int argc, char *argv[])
 
 	//Get index list
     err = get_index_list();
+    if (err) {
+        return err;
+    }
 
     //Activate index
-    err = activate_index();
+
+    //Start threads
+    for (current_thread = 0; current_thread < threads_count; current_thread++)
+    {
+        pthread_create(&(thr_act_idx[current_thread]), NULL, activate_index, (void *) current_thread);
+    }
+
+    //Wait threads
+    for (current_thread = 0; current_thread < threads_count; current_thread++)
+    {
+        pthread_join(thr_act_idx[current_thread], NULL);
+        if (status[current_thread] > 0) {
+            fprintf(stderr, "Error %d on thread %d\n", status[current_thread], current_thread);
+            err = 1;
+        }
+    }
 
     return err;
 }

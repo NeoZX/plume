@@ -1,2 +1,2 @@
 plume:
-	gcc -lfbclient -oplume plume.c
+	gcc -Wall -lfbclient -pthread -oplume plume.c
