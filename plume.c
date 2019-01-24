@@ -15,6 +15,7 @@
 
 #define ERR_DB 1
 #define ERR_MUTEX 2
+#define ERR_ACT_IDX 3
 
 #define SQL_VARCHAR(len) struct {short vary_length; char vary_string[(len)+1];}
 
@@ -97,6 +98,11 @@ int get_index_list()
 	short		    	dpb_length = 0L;
 	isc_db_handle		db = 0L;
 	isc_tr_handle		trans = 0L;
+	static char         isc_tpb[5] = {isc_tpb_version1,
+                                     isc_tpb_read,
+                                     isc_tpb_read_committed,
+                                     isc_tpb_wait,
+                                     isc_tpb_no_rec_version};
 	isc_stmt_handle		stmt = 0L;
 	ISC_STATUS_ARRAY	db_status;
 	XSQLDA			    *sqlda;
@@ -129,7 +135,7 @@ int get_index_list()
 	}
 
 	//start transaction
-	if (isc_start_transaction(db_status, &trans, 1, &db, 0, NULL))
+	if (isc_start_transaction(db_status, &trans, 1, &db, 5, isc_tpb))
 	{
 		isc_print_status(db_status);
 	}
@@ -208,6 +214,11 @@ void * activate_index(void *thr_id_ptr)
 	short		    	dpb_length = 0L;
 	isc_db_handle		db = 0L;
 	isc_tr_handle		trans = 0L;
+	static char         isc_tpb[5] = {isc_tpb_version1,
+                                     isc_tpb_write,
+                                     isc_tpb_read_committed,
+                                     isc_tpb_wait,
+                                     isc_tpb_no_rec_version};
 	ISC_STATUS_ARRAY	db_status;
 	char			    upd_str[256] = "";
 
@@ -263,9 +274,9 @@ void * activate_index(void *thr_id_ptr)
 
         //start transaction
         trans = 0L;
-        if (isc_start_transaction(db_status, &trans, 1, &db, 0, NULL))
+        if (isc_start_transaction(db_status, &trans, 1, &db, 5, isc_tpb))
         {
-            printf("Warning trouble on index %s:\n", idx_list[idx_num_thread]);
+            printf("Warning trouble on index %s\n", idx_list[idx_num_thread]);
             isc_print_status(db_status);
         }
 
@@ -274,12 +285,17 @@ void * activate_index(void *thr_id_ptr)
         strcat(upd_str, idx_list[idx_num_thread]);
         strcat(upd_str, " active;");
 
-        isc_dsql_exec_immed2(db_status, &db, &trans, 0, upd_str, SQL_DIALECT_CURRENT, NULL, NULL);
-        isc_print_status(db_status);
+        if (isc_dsql_exec_immed2(db_status, &db, &trans, 0, upd_str, SQL_DIALECT_CURRENT, NULL, NULL))
+        {
+            printf("Warning trouble on index %s\n", idx_list[idx_num_thread]);
+            isc_print_status(db_status);
+            status[thr_id] = ERR_ACT_IDX;
+        }
 
         //Commit transaction
         if (isc_commit_transaction(db_status, &trans))
         {
+            printf("Warning trouble on index %s\n", idx_list[idx_num_thread]);
             isc_print_status(db_status);
             status[thr_id] = ERR_DB;
             return thr_id_ptr;
