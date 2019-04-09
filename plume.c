@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <ibase.h>
 
-#define PLUME_VERSION "0.2"
+#define PLUME_VERSION "0.3"
 
 #define ERREXIT(status, rc)	{isc_print_status(status); return rc;}
 
@@ -108,7 +108,7 @@ int get_index_list()
 	XSQLDA			    *sqlda;
 	long			    fetch_stat;
 	char			    *sel_str =
-		"select RDB$INDEX_NAME from RDB$INDICES where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 order by RDB$FOREIGN_KEY;";
+		"select RDB$INDEX_NAME from RDB$INDICES where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
 	SQL_VARCHAR(INDEX_LEN)	idx_name;
 	short		        flag0 = 0;
 
