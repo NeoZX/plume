@@ -156,7 +156,7 @@ int get_index_list()
 	}
 
 	//Prepare statement
-	if (isc_dsql_prepare(db_status, &trans, &stmt, 0, sel_str, 1, sqlda))
+	if (isc_dsql_prepare(db_status, &trans, &stmt, 0, sel_str, SQL_DIALECT_CURRENT, sqlda))
 	{
 		fprintf(stderr, "Error prepare statement\n%s\n", sel_str);
 		ERREXIT(db_status, 1);
@@ -164,6 +164,7 @@ int get_index_list()
 
 	sqlda->sqlvar[0].sqldata = (char *)&idx_name;
 	sqlda->sqlvar[0].sqltype = SQL_VARYING + 1;
+	sqlda->sqlvar[0].sqllen = 32;
 	sqlda->sqlvar[0].sqlind  = &flag0;
 
 	//Execute statement
@@ -183,6 +184,8 @@ int get_index_list()
             break;
 		}
 	}
+
+	printf("Found %d indexes\n", idx_num);
 
 	if (fetch_stat != 100L)
 	{
