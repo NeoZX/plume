@@ -19,6 +19,10 @@
 
 #define SQL_VARCHAR(len) struct {short vary_length; char vary_string[(len)+1];}
 
+#ifndef isc_dpb_parallel_workers
+#define isc_dpb_parallel_workers 100
+#endif
+
 char *isc_database;
 char *isc_user;
 char *isc_password;
@@ -28,6 +32,7 @@ int idx_num = 0;
 pthread_mutex_t mutex_idx_num = PTHREAD_MUTEX_INITIALIZER;
 int status[IDX_MAX_THREADS];
 int threads_count = 1;
+char fbd_parallel_workers = 0;
 
 short goodbye = 0;
 
@@ -41,6 +46,7 @@ void help(char *name)
            "\t-u username\n"
            "\t-p password\n"
            "\t-t threads\n"
+           "\t-P Firebird parallel workers\n"
            , name);
 }
 
@@ -56,7 +62,7 @@ void version()
 
 int parse(int argc, char *argv[])
 {
-    char *opts = "hvd:u:p:t:";
+    char *opts = "hvd:u:p:t:P:";
     int opt;
     while((opt = getopt(argc, argv, opts)) != -1)
     {
@@ -85,6 +91,9 @@ int parse(int argc, char *argv[])
                 threads_count = IDX_MAX_THREADS;
                 printf("Threads count reduced to %d\n", IDX_MAX_THREADS);
             }
+            break;
+        case 'P':
+            fbd_parallel_workers = atoi(optarg);
             break;
         }
     }
@@ -244,6 +253,12 @@ void * activate_index(void *thr_id_ptr)
 	*dpb++ = isc_dpb_num_buffers;
 	*dpb++ = 1;
 	*dpb++ = 90;
+	if (fbd_parallel_workers > 0)
+	{
+		*dpb++ = isc_dpb_parallel_workers;
+		*dpb++ = sizeof(fbd_parallel_workers);
+		*dpb++ = fbd_parallel_workers;
+	}
 	dpb_length = dpb - dpb_buffer;
 
 	dpb = dpb_buffer;
