@@ -1,5 +1,5 @@
 # About the project
-This utility was designed for multithreaded index activation in the Firebird RDBMS. 
+This utility was designed for multithreaded indices activation in the Firebird RDBMS. 
 The utility will speed up the backup-restore operation or when creating a large number of new indexes.
 
 # Requirements
@@ -12,9 +12,16 @@ For effective work:
 * the base must be switched to asynchronous mode, the ForceWrite flag is off (remember to set it again)
 
 # Usage example
+Simple. 10 connections in parallel activate indexes.
+
     plume -u SYSDBA -p masterkey -t 10 -d localhost:mydatabase
 
+With using feature Firebird Parallel Workers (avaliable in [HQbird 3.0](https://ib-aid.com/en/hqbird/) and [RedDatabase 3.0.7](https://reddatabase.ru/products/))
+10 connections in parallel activate indexes. Each index is activated at 4 workers.
+
+    plume -u SYSDBA -p masterkey -t 10 -P 4 localhost:mydatabase
+
 # Restrictions
-The maximum index name length is 32 bytes. 
+The maximum index name length is 63 bytes. 
 The maximum number of indices is 20,000. 
 The maximum number of threads is 1024.
