@@ -9,7 +9,7 @@
 
 #define ERREXIT(status, rc)	{isc_print_status(status); return rc;}
 
-#define INDEX_LEN	32
+#define INDEX_LEN	64
 #define INDEX_MAX	20000
 #define IDX_MAX_THREADS 1024
 
@@ -117,7 +117,9 @@ int get_index_list()
 	XSQLDA			    *sqlda;
 	long			    fetch_stat;
 	char			    *sel_str =
-		"select RDB$INDEX_NAME from RDB$INDICES where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
+		"select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES "
+		"where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 "
+		"order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
 	SQL_VARCHAR(INDEX_LEN)	idx_name;
 	short		        flag0 = 0;
 
@@ -173,7 +175,7 @@ int get_index_list()
 
 	sqlda->sqlvar[0].sqldata = (char *)&idx_name;
 	sqlda->sqlvar[0].sqltype = SQL_VARYING + 1;
-	sqlda->sqlvar[0].sqllen = 32;
+	sqlda->sqlvar[0].sqllen = INDEX_LEN;
 	sqlda->sqlvar[0].sqlind  = &flag0;
 
 	//Execute statement
