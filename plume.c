@@ -12,6 +12,7 @@
 #define INDEX_LEN	64
 #define INDEX_MAX	20000
 #define IDX_MAX_THREADS 1024
+#define MAX_QUERY_LENGTH 65536
 
 #define ERR_DB 1
 #define ERR_MUTEX 2
@@ -26,6 +27,10 @@
 char *isc_database;
 char *isc_user;
 char *isc_password;
+char sel_str[MAX_QUERY_LENGTH] =
+    "select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES"
+    "where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1"
+    "order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
 
 char idx_list[INDEX_MAX][INDEX_LEN];
 int idx_num = 0;
@@ -45,6 +50,7 @@ void help(char *name)
            "\t-d database connections string\n"
            "\t-u username\n"
            "\t-p password\n"
+           "\t-q query retrieving the list of indexes to activate\n"
            "\t-t threads\n"
            "\t-P Firebird parallel workers\n"
            , name);
@@ -62,7 +68,7 @@ void version()
 
 int parse(int argc, char *argv[])
 {
-    char *opts = "hvd:u:p:t:P:";
+    char *opts = "hvd:u:p:q:t:P:";
     int opt;
     while((opt = getopt(argc, argv, opts)) != -1)
     {
@@ -84,6 +90,9 @@ int parse(int argc, char *argv[])
             break;
         case 'p':
             isc_password = optarg;
+            break;
+        case 'q':
+            sel_str = optarg;
             break;
         case 't':
             threads_count = atoi(optarg);
@@ -116,10 +125,6 @@ int get_index_list()
 	ISC_STATUS_ARRAY	db_status;
 	XSQLDA			    *sqlda;
 	long			    fetch_stat;
-	char			    *sel_str =
-		"select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES "
-		"where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 "
-		"order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
 	SQL_VARCHAR(INDEX_LEN)	idx_name;
 	short		        flag0 = 0;
 
