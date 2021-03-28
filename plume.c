@@ -12,7 +12,6 @@
 #define INDEX_LEN	64
 #define INDEX_MAX	20000
 #define IDX_MAX_THREADS 1024
-#define MAX_QUERY_LENGTH 65536
 
 #define ERR_DB 1
 #define ERR_MUTEX 2
@@ -27,9 +26,9 @@
 char *isc_database;
 char *isc_user;
 char *isc_password;
-char sel_str[MAX_QUERY_LENGTH] =
-    "select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES"
-    "where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1"
+char *sel_str =
+    "select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES "
+    "where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 "
     "order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
 
 char idx_list[INDEX_MAX][INDEX_LEN];
