@@ -129,12 +129,8 @@ int get_index_list()
 
 	int idx_num = 0;
 
-    //Some magic...
 	dpb = dpb_buffer;
 	*dpb++ = isc_dpb_version1;
-	*dpb++ = isc_dpb_num_buffers;
-	*dpb++ = 1;
-	*dpb++ = 90;
 	dpb_length = dpb - dpb_buffer;
 
 	dpb = dpb_buffer;
@@ -253,12 +249,8 @@ void * activate_index(void *thr_id_ptr)
 	int idx_num_thread = 0;
 	int mutex_status = 0;
 
-    //Some magic... i can't understand this magic yet
 	dpb = dpb_buffer;
 	*dpb++ = isc_dpb_version1;
-	*dpb++ = isc_dpb_num_buffers;
-	*dpb++ = 1;
-	*dpb++ = 90;
 	if (fbd_parallel_workers > 0)
 	{
 		*dpb++ = isc_dpb_parallel_workers;
