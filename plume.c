@@ -26,10 +26,29 @@
 char *isc_database;
 char *isc_user;
 char *isc_password;
-char *sel_str =
+char sel_str_act_idx[160] =
     "select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES "
     "where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 "
     "order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
+char sel_str_stat_idx[60] =
+    "select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES";
+char *sel_str = sel_str_act_idx;
+struct upd_str
+{
+    short index_name_pos;
+    char query[90];
+};
+struct upd_str upd_str_template_act_idx =
+{
+    .query = "ALTER INDEX                                                                 ACTIVE",
+    .index_name_pos = 12
+};
+struct upd_str upd_str_template_stat_idx =
+{
+    .query = "SET STATISTICS INDEX                                                                ",
+    .index_name_pos = 21
+};
+struct upd_str *upd_str_template = &upd_str_template_act_idx;
 
 char idx_list[INDEX_MAX][INDEX_LEN];
 int idx_num = 0;
@@ -49,6 +68,7 @@ void help(char *name)
            "\t-d database connections string\n"
            "\t-u username\n"
            "\t-p password\n"
+           "\t-s set statistics index\n"
            "\t-q query retrieving the list of indexes to activate\n"
            "\t-t threads\n"
            "\t-P Firebird parallel workers\n"
@@ -67,7 +87,7 @@ void version()
 
 int parse(int argc, char *argv[])
 {
-    char *opts = "hvd:u:p:q:t:P:";
+    char *opts = "hvd:u:p:sq:t:P:";
     int opt;
     while((opt = getopt(argc, argv, opts)) != -1)
     {
@@ -89,6 +109,12 @@ int parse(int argc, char *argv[])
             break;
         case 'p':
             isc_password = optarg;
+            break;
+        case 's':
+            upd_str_template = &upd_str_template_stat_idx;
+            if (sel_str == sel_str_act_idx) {
+                sel_str = sel_str_stat_idx;
+            }
             break;
         case 'q':
             sel_str = optarg;
@@ -243,7 +269,7 @@ void * activate_index(void *thr_id_ptr)
                                      isc_tpb_wait,
                                      isc_tpb_no_rec_version};
 	ISC_STATUS_ARRAY	db_status;
-	char			    upd_str[256] = "";
+    struct upd_str upd_str = *upd_str_template;
 
 	int thr_id = (int) thr_id_ptr;
 	int idx_num_thread = 0;
@@ -306,11 +332,9 @@ void * activate_index(void *thr_id_ptr)
         }
 
         //did not master the parameterized query
-        strcpy(upd_str, "alter index ");
-        strcat(upd_str, idx_list[idx_num_thread]);
-        strcat(upd_str, " active;");
+        memcpy(upd_str.query + upd_str.index_name_pos, idx_list[idx_num_thread], INDEX_LEN - 1);
 
-        if (isc_dsql_exec_immed2(db_status, &db, &trans, 0, upd_str, SQL_DIALECT_CURRENT, NULL, NULL))
+        if (isc_dsql_exec_immed2(db_status, &db, &trans, 0, upd_str.query, SQL_DIALECT_CURRENT, NULL, NULL))
         {
             printf("Warning trouble on index %s\n", idx_list[idx_num_thread]);
             isc_print_status(db_status);
