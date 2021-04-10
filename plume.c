@@ -68,7 +68,7 @@ void help(char *name)
            "\t-d database connections string\n"
            "\t-u username\n"
            "\t-p password\n"
-           "\t-s set statistics index\n"
+           "\t-s set statistics indexes\n"
            "\t-q query retrieving the list of indexes to activate\n"
            "\t-t threads\n"
            "\t-P Firebird parallel workers\n"
