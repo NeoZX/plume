@@ -111,7 +111,7 @@ types:
         type: s4
       - id: blob
         type: blob
-#todo add eos
+        # todo add eos
         repeat: until
         repeat-until: _.length == 0
   blob:

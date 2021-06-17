@@ -117,19 +117,39 @@ types:
   att_tra:
     seq:
       - id: att
-        type: att
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
       - id: tra
-        type: tra
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
   tra_svp:
     seq:
       - id: tra
-        type: tra
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
       - id: undo
-        type: svp
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
   tra_exec:
     seq:
       - id: tra
-        type: tra
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
       - id: length
         type: u4
       - id: exec
@@ -140,7 +160,11 @@ types:
         type: s4
         enum: charsets
       - id: tra
-        type: tra
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
       - id: length
         type: u4
       - id: exec
@@ -164,7 +188,11 @@ types:
   tra_blob:
     seq:
       - id: tra
-        type: tra
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
       - id: high_id
         type: s4
       - id: low_id
@@ -176,7 +204,11 @@ types:
   tra_table_data:
     seq:
       - id: tra
-        type: tra
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
       - id: table_name_length
         type: u4
       - id: table_name
@@ -190,7 +222,11 @@ types:
   tra_table_update_data:
     seq:
       - id: tra
-        type: tra
+        type: 
+          switch-on: _root.header.protocol
+          cases:
+            1: s4
+            2: s8
       - id: table_name_length
         type: u4
       - id: table_name
