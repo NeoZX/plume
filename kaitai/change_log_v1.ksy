@@ -124,7 +124,6 @@ types:
     seq:
       - id: atom_id
         type: s4
-        enum: charsets
       - id: length
         type: s4
       - id: text
