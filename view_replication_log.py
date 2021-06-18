@@ -60,7 +60,9 @@ if __name__ == '__main__':
             tra = ''
             data = ''
             offset = size['tag']
-            if type(packet.data) is replication_file.Einitialize:
+            if packet.tag == replication_file.Tags.cleanuptransactions:
+                tra = 'non-tra'
+            elif type(packet.data) is replication_file.Einitialize:
                 data = 'version:{} flags:0x{:X} length:{}'.format(packet.data.version, packet.data.flags,
                                                                   packet.data.length)
                 offset += size['version'] + size['flags'] + size['length'] + packet.data.length
@@ -84,9 +86,10 @@ if __name__ == '__main__':
                 offset += size['tra'] + size['length'] + packet.data.length
             elif type(packet.data) is replication_file.TraExecIntl:
                 tra = packet.data.tra
-                data = packet.data.charset
-                # todo: add convert exec from charset to utf-8
-                offset += size['tra'] + size['charset'] + size['length'] + packet.data.length
+                offset += size['tra'] + size['charset'] + size['length']
+                data = '{} length {} at 0x{:X} {}'.format(packet.data.charset, packet.data.length, pos + offset,
+                                                          packet.data.exec)
+                offset += packet.data.length
             elif type(packet.data) is replication_file.IscDpb:
                 tra = 'non-tra'
                 offset += size['dpb_length'] + size['dpb_length']

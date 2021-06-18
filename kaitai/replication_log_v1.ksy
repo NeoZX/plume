@@ -137,11 +137,7 @@ types:
             1: s4
             2: s8
       - id: undo
-        type: 
-          switch-on: _root.header.protocol
-          cases:
-            1: s4
-            2: s8
+        type: s4
   tra_exec:
     seq:
       - id: tra
