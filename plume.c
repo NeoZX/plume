@@ -186,7 +186,7 @@ int get_index_list()
     if (isc_dsql_allocate_statement(db_status, &db, &stmt))
     {
         fprintf(stderr, "Error allocate statement\n");
-        free(sqlda)
+        free(sqlda);
         ERREXIT(db_status, 1);
     }
 
@@ -194,7 +194,7 @@ int get_index_list()
     if (isc_dsql_prepare(db_status, &trans, &stmt, 0, sel_str, SQL_DIALECT_CURRENT, sqlda))
     {
         fprintf(stderr, "Error prepare statement\n%s\n", sel_str);
-        free(sqlda)
+        free(sqlda);
         ERREXIT(db_status, 1);
     }
 
@@ -207,7 +207,7 @@ int get_index_list()
     if (isc_dsql_execute(db_status, &trans, &stmt, 1, NULL))
     {
         fprintf(stderr, "Error execute statement\n%s\n", sel_str);
-        free(sqlda)
+        free(sqlda);
         ERREXIT(db_status, 1);
     }
 
@@ -228,7 +228,7 @@ int get_index_list()
     if (fetch_stat != 100L)
     {
         fprintf(stderr, "Error fetch, fetch stat %ld \n", fetch_stat);
-        free(sqlda)
+        free(sqlda);
         ERREXIT(db_status, 1);
     }
 
@@ -236,7 +236,7 @@ int get_index_list()
     if (isc_dsql_free_statement(db_status, &stmt, DSQL_close))
     {
         fprintf(stderr, "Error free statement\n");
-        free(sqlda)
+        free(sqlda);
         ERREXIT(db_status, 1)
     }
 
@@ -244,7 +244,7 @@ int get_index_list()
     if (isc_commit_transaction(db_status, &trans))
     {
         fprintf(stderr, "Error commit transaction\n");
-        free(sqlda)
+        free(sqlda);
         ERREXIT(db_status, 1);
     }
 
@@ -252,7 +252,7 @@ int get_index_list()
     if (isc_detach_database(db_status, &db))
     {
         fprintf(stderr, "Error detach database\n");
-        free(sqlda)
+        free(sqlda);
         ERREXIT(db_status, 1);
     }
 
