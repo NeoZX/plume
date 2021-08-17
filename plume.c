@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <unistd.h>
+#include <getopt.h>
 #include <pthread.h>
 #include <ibase.h>
 
@@ -20,8 +20,9 @@
 #define SQL_VARCHAR(len) struct {short vary_length; char vary_string[(len)+1];}
 
 #ifndef isc_dpb_parallel_workers
-#define isc_dpb_parallel_workers 100
+#define isc_dpb_parallel_workers 167
 #endif
+#define old_isc_dpb_parallel_workers 100
 
 char *isc_database;
 char *isc_user;
@@ -56,6 +57,7 @@ pthread_mutex_t mutex_idx_num = PTHREAD_MUTEX_INITIALIZER;
 int status[IDX_MAX_THREADS];
 int threads_count = 1;
 char fbd_parallel_workers = 0;
+char code_isc_dpb_parallel_workers = isc_dpb_parallel_workers;
 
 short goodbye = 0;
 
@@ -71,7 +73,9 @@ void help(char *name)
            "\t-s set statistics indexes\n"
            "\t-q query retrieving the list of indexes to activate\n"
            "\t-t threads\n"
-           "\t-P Firebird parallel workers\n", name);
+           "\t-P Firebird parallel workers\n"
+           "\t--old_code_isc_dpb_parallel_workers use old code 100 instead of 167 "
+           "(RedDatabase before 3.0.8 or HQBird 3)\n", name);
 }
 
 void version()
@@ -88,10 +92,27 @@ int parse(int argc, char *argv[])
 {
     char *opts = "hvd:u:p:sq:t:P:";
     int opt;
-    while ((opt = getopt(argc, argv, opts)) != -1)
+    int option_index = 0;
+    static struct option long_options[] =
+    {
+        {"old_code_isc_dpb_parallel_workers", no_argument, 0, 0},
+        {0,      0,           0, 0}
+    };
+    while ((opt = getopt_long(argc, argv, opts, long_options, &option_index)) != -1)
     {
         switch (opt)
         {
+        case 0:
+            switch (option_index)
+            {
+            case 0:
+                code_isc_dpb_parallel_workers = old_isc_dpb_parallel_workers;
+                break;
+            default:
+                printf("Unknown option %s", long_options[option_index].name);
+                goodbye = 1;
+            }
+            break;
         case 'h':
             help(argv[0]);
             goodbye = 1;
@@ -282,7 +303,7 @@ void * activate_index(void *thr_id_ptr)
     *dpb++ = isc_dpb_version1;
     if (fbd_parallel_workers > 0)
     {
-        *dpb++ = isc_dpb_parallel_workers;
+        *dpb++ = code_isc_dpb_parallel_workers;
         *dpb++ = sizeof(fbd_parallel_workers);
         *dpb++ = fbd_parallel_workers;
     }
