@@ -75,7 +75,7 @@ void help(char *name)
            "\t-t threads\n"
            "\t-P Firebird parallel workers\n"
            "\t--old_code_isc_dpb_parallel_workers use old code 100 instead of 167 "
-           "(RedDatabase before 3.0.8 or HQBird 3)\n", name);
+           "(RedDatabase before 3.0.9 or HQBird 3)\n", name);
 }
 
 void version()
@@ -245,6 +245,8 @@ int get_index_list()
     }
 
     printf("Found %d indexes\n", idx_num);
+
+    idx_num = 0;
 
     if (fetch_stat != 100L)
     {
