@@ -26,7 +26,7 @@ Activating indexes on an custom query, for example, activating indexes on tables
         -q "select cast(rdb\$index_name as char(63)) from rdb\$indices \
             where rdb\$relation_name in ('TABLE1', 'TABLE2');"
 
-With using feature Firebird Parallel Workers (avaliable in [HQbird 3.0](https://ib-aid.com/en/hqbird/) and [RedDatabase 3.0.7](https://reddatabase.ru/products/))
+With using feature Firebird Parallel Workers (avaliable in [HQbird 3.0](https://ib-aid.com/en/hqbird/) and [RedDatabase 3.0.8](https://reddatabase.ru/products/))
 10 connections in parallel activate indexes. Each index is activated at 4 workers:
 
     plume -u SYSDBA -p masterkey -t 10 -P 4 localhost:mydatabase
