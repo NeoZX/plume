@@ -13,6 +13,9 @@
 #define INDEX_MAX 20000
 #define IDX_MAX_THREADS 1024
 
+#define QUERY_PRE_LENGTH 23
+#define QUERY_POST_LENGTH 10
+
 #define ERR_DB 1
 #define ERR_MUTEX 2
 #define ERR_ACT_IDX 3
@@ -27,27 +30,28 @@
 char *isc_database;
 char *isc_user;
 char *isc_password;
-char sel_str_act_idx[160] =
-    "select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES "
+char *sel_str_act_idx =
+    "select trim(cast(RDB$INDEX_NAME as char(63))) from RDB$INDICES "
     "where RDB$SYSTEM_FLAG<>1 and RDB$INDEX_INACTIVE=1 "
-    "order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;";
-char sel_str_stat_idx[60] =
-    "select cast(RDB$INDEX_NAME as char(63)) from RDB$INDICES";
-char *sel_str = sel_str_act_idx;
+    "order by RDB$FOREIGN_KEY, RDB$RELATION_NAME;\0";
+char *sel_str_stat_idx =
+    "select trim(cast(RDB$INDEX_NAME as char(63))) from RDB$INDICES;\0";
+char *sel_str;
+
 struct upd_str
 {
-    short index_name_pos;
-    char query[90];
+    char pre[QUERY_PRE_LENGTH];
+    char post[QUERY_POST_LENGTH];
 };
 struct upd_str upd_str_template_act_idx =
 {
-    .query = "ALTER INDEX                                                                 ACTIVE",
-    .index_name_pos = 12
+    .pre = "ALTER INDEX \"\0",
+    .post = "\" ACTIVE;\0"
 };
 struct upd_str upd_str_template_stat_idx =
 {
-    .query = "SET STATISTICS INDEX                                                                ",
-    .index_name_pos = 21
+    .pre = "SET STATISTICS INDEX \"\0",
+    .post = "\";\0"
 };
 struct upd_str *upd_str_template = &upd_str_template_act_idx;
 
@@ -90,6 +94,7 @@ void version()
 
 int parse(int argc, char *argv[])
 {
+    sel_str = sel_str_act_idx;
     char *opts = "hvd:u:p:sq:t:P:";
     int opt;
     int option_index = 0;
@@ -291,7 +296,7 @@ void * activate_index(void *thr_id_ptr)
                                isc_tpb_wait, isc_tpb_no_rec_version
                              };
     ISC_STATUS_ARRAY db_status;
-    struct upd_str upd_str = *upd_str_template;
+    char query[QUERY_PRE_LENGTH + INDEX_LEN + QUERY_POST_LENGTH];
 
     int thr_id = (int) thr_id_ptr;
     int idx_num_thread = 0;
@@ -349,9 +354,12 @@ void * activate_index(void *thr_id_ptr)
         }
 
         //did not master the parameterized query
-        memcpy(upd_str.query + upd_str.index_name_pos, idx_list[idx_num_thread], INDEX_LEN - 1);
+        //form a query
+        strcpy(query, upd_str_template->pre);
+        strcat(query, idx_list[idx_num_thread]);
+        strcat(query, upd_str_template->post);
 
-        if (isc_dsql_exec_immed2(db_status, &db, &trans, 0, upd_str.query, SQL_DIALECT_CURRENT,
+        if (isc_dsql_exec_immed2(db_status, &db, &trans, 0, query, SQL_DIALECT_CURRENT,
                                  NULL, NULL))
         {
             printf("Warning trouble on index %s\n", idx_list[idx_num_thread]);
