@@ -52,9 +52,9 @@ if __name__ == '__main__':
     print('    OFFSET TAG                     ATT/TRA DATA')
     pos = size['header']
     for segment in replication_file.segments.segment:
-        print('0x{:08X} START SEGMENT {} LENGTH {:d}'.format(pos,
+        print('0x{:08X} START SEGMENT {} PACKETS LENGTH 0x{:X}'.format(pos,
                                                              datetime.fromtimestamp(segment.unixtime).strftime(
-                                                                 "%Y-%m-%d %H:%M:%S"), segment.segment_length))
+                                                                 "%Y-%m-%d %H:%M:%S"), segment.packets_length))
         pos += size['segment_header']
         for packet in segment.packets.packet:
             tra = ''
@@ -63,7 +63,7 @@ if __name__ == '__main__':
             if packet.tag == replication_file.Tags.cleanuptransactions:
                 tra = 'non-tra'
             elif type(packet.data) is replication_file.Einitialize:
-                data = 'version:{} flags:0x{:X} length:{}'.format(packet.data.version, packet.data.flags,
+                data = 'version:{} flags:0x{:X} length:0x{:X}'.format(packet.data.version, packet.data.flags,
                                                                   packet.data.length)
                 offset += size['version'] + size['flags'] + size['length'] + packet.data.length
             elif type(packet.data) is replication_file.Att:
@@ -87,19 +87,19 @@ if __name__ == '__main__':
             elif type(packet.data) is replication_file.TraExecIntl:
                 tra = packet.data.tra
                 offset += size['tra'] + size['charset'] + size['length']
-                data = '{} length {} at 0x{:X} {}'.format(packet.data.charset, packet.data.length, pos + offset,
+                data = '{} length 0x{:X} at 0x{:X} {}'.format(packet.data.charset, packet.data.length, pos + offset,
                                                           packet.data.exec)
                 offset += packet.data.length
-            elif type(packet.data) is replication_file.IscDpb:
+            elif type(packet.data) is replication_file.IscDpbData:
                 tra = 'non-tra'
                 offset += size['dpb_length'] + size['dpb_length']
-                data = 'dpb length {} at 0x{:X}'.format(packet.data.dpb_length,
+                data = 'dpb length 0x{:X} at 0x{:X}'.format(packet.data.dpb_length,
                                                         pos + offset)
                 offset += packet.data.length
             elif type(packet.data) is replication_file.TraBlob:
                 tra = packet.data.tra
                 offset += size['tra'] + size['blob_id'] + size['length']
-                data = 'Blob 0x{:X}:0x{:X} length {} at 0x{:X}'.format(packet.data.high_id, packet.data.low_id,
+                data = 'Blob 0x{:X}:0x{:X} length 0x{:X} at 0x{:X}'.format(packet.data.high_id, packet.data.low_id,
                                                                        packet.data.length, pos + offset)
                 offset += packet.data.length
             elif type(packet.data) is replication_file.TraTableData:
