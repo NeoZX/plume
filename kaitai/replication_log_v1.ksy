@@ -47,11 +47,11 @@ types:
         type: u4
       - id: isc_time
         type: u4
-      - id: segment_length
+      - id: packets_length
         type: u4
       - id: packets
         type: packets
-        size: segment_length
+        size: packets_length
     instances:
       unixtime:
         value: '(isc_date - 40617 + 30) * 86400 + isc_time / 1000'
@@ -88,7 +88,7 @@ types:
             'tags::preparetransaction': tra
             'tags::executestatement': tra_exec
             'tags::changegenerator2': change_generator2
-            'tags::createdatabase': isc_dpb
+            'tags::createdatabase': isc_dpb_data
             'tags::executestatementintl': tra_exec_intl
   att:
     seq:
@@ -165,7 +165,7 @@ types:
         type: u4
       - id: exec
         size: length
-  isc_dpb:
+  isc_dpb_data:
     seq:
       - id: dpb_length
         type: 
@@ -179,8 +179,87 @@ types:
           cases:
             1: s2
             2: s4
-      - id: dpb_data
-        size: length
+      - id: dpb_version
+        type: u1
+      - id: dpb_parameters
+        type: dpb_parameters
+        size: length - 1
+  dpb_parameters:
+    seq:
+      - id: dpb_parameter
+        type: dpb_parameter
+        repeat: eos
+  dpb_parameter:
+    seq:
+      - id: parameter
+        type: u1
+        enum: isc_dpb
+      - id: data
+        type:
+          switch-on: parameter
+          cases:
+            'isc_dpb::page_size': ubyte4             #4
+            'isc_dpb::overwrite': ubyte1             #54
+            'isc_dpb::dummy_packet_interval': ubyte4 #58
+            'isc_dpb::sql_role_name': s_string       #60
+            'isc_dpb::working_directory': s_string   #62
+            'isc_dpb::sql_dialect': ubyte4           #63
+            'isc_dpb::auth_block': dpb_auth_block    #79
+            'isc_dpb::client_version': s_string      #80
+            'isc_dpb::host_name': s_string           #82
+            'isc_dpb::os_user': s_string             #83
+            'isc_dpb::remote_protocol': s_string     #82
+            _: s_data
+  ubyte1:
+    seq:
+      - id: size
+        type: u1
+      - id: data
+        type: u1
+  ubyte4:
+    seq:
+      - id: size
+        type: u1
+      - id: data
+        type: u4
+  s_string:
+    seq:
+      - id: size
+        type: u1
+      - id: data
+        type: str
+        encoding: utf-8
+        size: size
+  s_data:
+    seq:
+      - id: size
+        type: u1
+      - id: data
+        size: size
+  dpb_auth_block:
+    seq:
+      - id: size
+        type: u1
+      - id: some1
+        type: u1
+      - id: block_parameters_size
+        type: u4
+      - id: block_parameters
+        type: dpb_auth_block_parameters
+        size: block_parameters_size
+  dpb_auth_block_parameters:
+    seq:
+      - id: dpb_auth_block_parameter
+        type: dpb_auth_block_parameter
+        repeat: eos
+  dpb_auth_block_parameter:
+    seq:
+      - id: tag
+        type: u1
+      - id: size
+        type: u4
+      - id: data
+        size: size
   tra_blob:
     seq:
       - id: tra
@@ -348,3 +427,107 @@ enums:
     68: cp943c
     69: gb18030
     127: dynamic
+  isc_dpb:
+    1: cdd_pathname
+    2: allocation
+    3: journal
+    4: page_size
+    5: num_buffers
+    6: buffer_length
+    7: debug
+    8: garbage_collect
+    9: verify
+    10: sweep
+    11: enable_journal
+    12: disable_journal
+    13: dbkey_scope
+    14: number_of_users
+    15: trace
+    16: no_garbage_collect
+    17: damaged
+    18: license
+    19: sys_user_name
+    20: encrypt_key
+    21: activate_shadow
+    22: sweep_interval
+    23: delete_shadow
+    24: force_write
+    25: begin_log
+    26: quit_log
+    27: no_reserve
+    28: user_name
+    29: password
+    30: password_enc
+    31: sys_user_name_enc
+    32: interp
+    33: online_dump
+    34: old_file_size
+    35: old_num_files
+    36: old_file
+    37: old_start_page
+    38: old_start_seqno
+    39: old_start_file
+    40: drop_walfile
+    41: old_dump_id
+    42: wal_backup_dir
+    43: wal_chkptlen
+    44: wal_numbufs
+    45: wal_bufsize
+    46: wal_grp_cmt_wait
+    47: lc_messages
+    48: lc_ctype
+    49: cache_manager
+    50: shutdown
+    51: online
+    52: shutdown_delay
+    53: reserved
+    54: overwrite
+    55: sec_attach
+    56: disable_wal
+    57: connect_timeout
+    58: dummy_packet_interval
+    59: gbak_attach
+    60: sql_role_name
+    61: set_page_buffers
+    62: working_directory
+    63: sql_dialect
+    64: set_db_readonly
+    65: set_db_sql_dialect
+    66: gfix_attach
+    67: gstat_attach
+    68: set_db_charset
+    69: gsec_attach
+    70: address_path
+    71: process_id
+    72: no_db_triggers
+    73: trusted_auth
+    74: process_name
+    75: trusted_role
+    76: org_filename
+    77: utf8_filename
+    78: ext_call_depth
+    79: auth_block
+    80: client_version
+    81: remote_protocol
+    82: host_name
+    83: os_user
+    84: specific_auth_data
+    85: auth_plugin_list
+    86: auth_plugin_name
+    87: config
+    88: nolinger
+    89: reset_icu
+    90: map_attach
+    100: parallel_workers
+    101: worker_attach
+    #Red Database parameters
+    150: multi_factor_auth
+    151: certificate
+    156: verify_server
+    157: hw_address
+    159: repository_pin
+    160: set_db_replica
+    163: repl_attach
+    164: effective_login
+    165: repl_log_warnings
+    166: set_db_guid
