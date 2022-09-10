@@ -303,13 +303,16 @@ void * activate_index(void *thr_id_ptr)
     int mutex_status = 0;
 
     dpb = dpb_buffer;
-    *dpb = isc_dpb_version1;
-    dpb_length = 1;
+    *dpb++ = isc_dpb_version1;
     if (fbd_parallel_workers > 0)
     {
-        isc_modify_dpb(&dpb, &dpb_length, code_isc_dpb_parallel_workers, &fbd_parallel_workers,
-                       sizeof(fbd_parallel_workers));
+        *dpb++ = code_isc_dpb_parallel_workers;
+        *dpb++ = sizeof(fbd_parallel_workers);
+        *dpb++ = fbd_parallel_workers;
     }
+    dpb_length = dpb - dpb_buffer;
+
+    dpb = dpb_buffer;
     isc_modify_dpb(&dpb, &dpb_length, isc_dpb_user_name, isc_user, strlen(isc_user));
     isc_modify_dpb(&dpb, &dpb_length, isc_dpb_password, isc_password, strlen(isc_password));
 
