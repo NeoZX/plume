@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include <ibase.h>
 
-#define PLUME_VERSION "0.5"
+#define PLUME_VERSION "0.5.1"
 
 #define ERREXIT(status, rc) {isc_print_status(status); return rc;}
 
