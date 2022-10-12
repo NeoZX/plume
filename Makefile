@@ -1,3 +1,5 @@
+all: bin/plume
+
 clean:
 	rm -rf bin/*
 
