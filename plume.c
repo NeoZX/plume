@@ -247,8 +247,6 @@ int get_index_list()
 
     printf("Found %d indexes\n", idx_num);
 
-    idx_num = 0;
-
     if (fetch_stat != 100L)
     {
         fprintf(stderr, "Error fetch, fetch stat %ld \n", fetch_stat);
@@ -439,6 +437,13 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Error get index list\n");
         return err;
     }
+
+    //Check. no indexes to activate or set statistics
+    if (idx_num == 0)
+    {
+        return(0);
+    }
+    idx_num = 0;
 
     //Activate index
 
