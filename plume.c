@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <time.h>
 #include <getopt.h>
 #include <pthread.h>
 #include <ibase.h>
@@ -62,6 +63,11 @@ int status[IDX_MAX_THREADS];
 int threads_count = 1;
 char fbd_parallel_workers = 0;
 char code_isc_dpb_parallel_workers = isc_dpb_parallel_workers;
+int log_level = 0;
+const char action_activate[10] = "Activate\0";
+const char action_set_stat[10] = "Set stat\0";
+char *action = action_activate;
+struct timespec start_main;
 
 short goodbye = 0;
 
@@ -79,7 +85,8 @@ void help(char *name)
            "\t-t threads\n"
            "\t-P Firebird parallel workers\n"
            "\t--old_code_isc_dpb_parallel_workers use old code 100 instead of 167 "
-           "(RedDatabase before 3.0.9 or HQBird 3)\n", name);
+           "(RedDatabase before 3.0.9 or HQBird 3)\n"
+           "\t-l enable logging to stdout\n", name);
 }
 
 void version()
@@ -95,7 +102,7 @@ void version()
 int parse(int argc, char *argv[])
 {
     sel_str = sel_str_act_idx;
-    char *opts = "hvd:u:p:sq:t:P:";
+    char *opts = "hvd:u:p:sq:t:P:l";
     int opt;
     int option_index = 0;
     static struct option long_options[] =
@@ -141,6 +148,7 @@ int parse(int argc, char *argv[])
             {
                 sel_str = sel_str_stat_idx;
             }
+            action = action_set_stat;
             break;
         case 'q':
             sel_str = optarg;
@@ -155,6 +163,9 @@ int parse(int argc, char *argv[])
             break;
         case 'P':
             fbd_parallel_workers = atoi(optarg);
+            break;
+        case 'l':
+            log_level = 1;
             break;
         }
     }
@@ -300,6 +311,8 @@ void * activate_index(void *thr_id_ptr)
     int idx_num_thread = 0;
     int mutex_status = 0;
 
+    struct timespec tra_begin, tra_end;
+
     dpb = dpb_buffer;
     *dpb++ = isc_dpb_version1;
     if (fbd_parallel_workers > 0)
@@ -342,9 +355,25 @@ void * activate_index(void *thr_id_ptr)
         return thr_id_ptr;
     }
 
+    if (log_level)
+    {
+        clock_gettime(CLOCK_REALTIME, &tra_end);
+    }
+
     while ((idx_num_thread < INDEX_MAX) && (*idx_list[idx_num_thread]))
     {
-        //printf("Activate index %s\n", idx_list[idx_num_thread]);
+        //Logging
+        if (log_level) {
+            clock_gettime(CLOCK_REALTIME, &tra_begin);
+            //TODO: Activate or set statistics
+            const double begin_delta = (double) (tra_begin.tv_sec - tra_end.tv_sec)
+                                       + (double ) (tra_begin.tv_nsec - tra_end.tv_nsec) / 1e9;
+            const double begin_time = (double) (tra_begin.tv_sec -
+                                                start_main.tv_sec)
+                                      + (double ) (tra_begin.tv_nsec - start_main.tv_nsec) / 1e9;
+            printf("%4d %9.3f %7.3f %-9s index %s\n", thr_id, begin_time, begin_delta, action,
+                   idx_list[idx_num_thread]);
+        }
 
         //start transaction
         trans = 0L;
@@ -376,6 +405,17 @@ void * activate_index(void *thr_id_ptr)
             status[thr_id] = ERR_DB;
             return thr_id_ptr;
         }
+        //Logging
+        if (log_level)
+        {
+            clock_gettime(CLOCK_REALTIME, &tra_end);
+            const double end_delta = (double) (tra_end.tv_sec - tra_begin.tv_sec)
+                                     + (double ) (tra_end.tv_nsec - tra_begin.tv_nsec) / 1e9;
+            const double end_time = (double) (tra_end.tv_sec - start_main.tv_sec)
+                                    + (double ) (tra_end.tv_nsec - start_main.tv_nsec) / 1e9;
+            printf("%4d %9.3f %7.3f Committed index %s\n", thr_id, end_time, end_delta, idx_list[idx_num_thread]);
+        }
+
         //lock idx_num
         mutex_status = pthread_mutex_lock(&mutex_idx_num);
         if (mutex_status != 0)
@@ -430,6 +470,12 @@ int main(int argc, char *argv[])
 
     //Validate arg
 
+    //Check. Logging enabled
+    if (log_level)
+    {
+        clock_gettime(CLOCK_REALTIME, &start_main);
+    }
+
     //Get index list
     err = get_index_list();
     if (err)
@@ -446,6 +492,11 @@ int main(int argc, char *argv[])
     idx_num = 0;
 
     //Activate index
+    //Logging
+    if (log_level)
+    {
+        printf("%-4s %-9s %-7s\n", "Thr", "time", "delta");
+    }
 
     //Start threads
     for (current_thread = 0; current_thread < threads_count; current_thread++)
