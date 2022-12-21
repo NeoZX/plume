@@ -21,7 +21,6 @@
 #define ERR_DB 1
 #define ERR_MUTEX 2
 #define ERR_ACT_IDX 3
-#define ERR_ARG 4
 
 #define SQL_VARCHAR(len) struct {short vary_length; char vary_string[(len)+1];}
 
@@ -201,14 +200,14 @@ int get_index_list()
     if (isc_attach_database(db_status, strlen(isc_database), isc_database, &db, dpb_length, dpb))
     {
         fprintf(stderr, "Error attach to database %s\n", isc_database);
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     //start transaction
     if (isc_start_transaction(db_status, &trans, 1, &db, sizeof(isc_tpb), isc_tpb))
     {
         fprintf(stderr, "Error start transaction\n");
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     /* Allocate an output SQLDA. */
@@ -222,7 +221,7 @@ int get_index_list()
     {
         fprintf(stderr, "Error allocate statement\n");
         free(sqlda);
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     //Prepare statement
@@ -230,7 +229,7 @@ int get_index_list()
     {
         fprintf(stderr, "Error prepare statement\n%s\n", sel_str);
         free(sqlda);
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     sqlda->sqlvar[0].sqldata = (char *)&idx_name;
@@ -243,7 +242,7 @@ int get_index_list()
     {
         fprintf(stderr, "Error execute statement\n%s\n", sel_str);
         free(sqlda);
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     idx_num = 0;
@@ -264,7 +263,7 @@ int get_index_list()
     {
         fprintf(stderr, "Error fetch, fetch stat %ld \n", fetch_stat);
         free(sqlda);
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     //Free statement
@@ -272,7 +271,7 @@ int get_index_list()
     {
         fprintf(stderr, "Error free statement\n");
         free(sqlda);
-        ERREXIT(db_status, 1)
+        ERREXIT(db_status, ERR_DB)
     }
 
     //Commit transaction
@@ -280,7 +279,7 @@ int get_index_list()
     {
         fprintf(stderr, "Error commit transaction\n");
         free(sqlda);
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     //Close
@@ -288,7 +287,7 @@ int get_index_list()
     {
         fprintf(stderr, "Error detach database\n");
         free(sqlda);
-        ERREXIT(db_status, 1);
+        ERREXIT(db_status, ERR_DB);
     }
 
     free(sqlda);
@@ -473,17 +472,17 @@ int main(int argc, char *argv[])
     if (isc_database == NULL)
     {
         fprintf(stderr, "Database connection string not specified.\n");
-        exit(ERR_ARG);
+        exit(EX_USAGE);
     }
     if (isc_user == NULL)
     {
         fprintf(stderr, "Username not specified.\n");
-        exit(ERR_ARG);
+        exit(EX_USAGE);
     }
     if (isc_password == NULL)
     {
         fprintf(stderr, "Password not specified.\n");
-        exit(ERR_ARG);
+        exit(EX_USAGE);
     }
 
     //Check. Logging enabled
