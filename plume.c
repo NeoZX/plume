@@ -5,6 +5,7 @@
 #include <time.h>
 #include <getopt.h>
 #include <pthread.h>
+#include <sys/prctl.h>
 #include <ibase.h>
 
 #define PLUME_VERSION "0.5.2"
@@ -313,6 +314,10 @@ void * activate_index(void *thr_id_ptr)
     int mutex_status = 0;
 
     struct timespec tra_begin, tra_end;
+
+    char thread_name[16];
+    sprintf(thread_name, "ActIdx#%08X", thr_id);
+    prctl(PR_SET_NAME, thread_name);
 
     dpb = dpb_buffer;
     *dpb++ = isc_dpb_version1;
