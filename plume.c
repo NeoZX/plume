@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <sysexits.h>
 #include <time.h>
 #include <getopt.h>
 #include <pthread.h>
@@ -197,14 +198,14 @@ int get_index_list()
     isc_modify_dpb(&dpb, &dpb_length, isc_dpb_password, isc_password, strlen(isc_password));
 
     //Connect to database
-    if (isc_attach_database(db_status, 0, isc_database, &db, dpb_length, dpb))
+    if (isc_attach_database(db_status, strlen(isc_database), isc_database, &db, dpb_length, dpb))
     {
         fprintf(stderr, "Error attach to database %s\n", isc_database);
         ERREXIT(db_status, 1);
     }
 
     //start transaction
-    if (isc_start_transaction(db_status, &trans, 1, &db, 5, isc_tpb))
+    if (isc_start_transaction(db_status, &trans, 1, &db, sizeof(isc_tpb), isc_tpb))
     {
         fprintf(stderr, "Error start transaction\n");
         ERREXIT(db_status, 1);
@@ -214,7 +215,7 @@ int get_index_list()
     sqlda = (XSQLDA *) malloc(XSQLDA_LENGTH(1));
     sqlda->sqln = 1;
     sqlda->sqld = 1;
-    sqlda->version = 1;
+    sqlda->version = SQLDA_VERSION1;
 
     //Create statement
     if (isc_dsql_allocate_statement(db_status, &db, &stmt))
@@ -225,7 +226,7 @@ int get_index_list()
     }
 
     //Prepare statement
-    if (isc_dsql_prepare(db_status, &trans, &stmt, 0, sel_str, SQL_DIALECT_CURRENT, sqlda))
+    if (isc_dsql_prepare(db_status, &trans, &stmt, strlen(sel_str), sel_str, SQL_DIALECT_CURRENT, sqlda))
     {
         fprintf(stderr, "Error prepare statement\n%s\n", sel_str);
         free(sqlda);
@@ -238,7 +239,7 @@ int get_index_list()
     sqlda->sqlvar[0].sqlind  = &flag0;
 
     //Execute statement
-    if (isc_dsql_execute(db_status, &trans, &stmt, 1, NULL))
+    if (isc_dsql_execute(db_status, &trans, &stmt, SQL_DIALECT_CURRENT, NULL))
     {
         fprintf(stderr, "Error execute statement\n%s\n", sel_str);
         free(sqlda);
@@ -246,7 +247,7 @@ int get_index_list()
     }
 
     idx_num = 0;
-    while ((fetch_stat = isc_dsql_fetch(db_status, &stmt, 1, sqlda)) == 0)
+    while ((fetch_stat = isc_dsql_fetch(db_status, &stmt, SQL_DIALECT_CURRENT, sqlda)) == 0)
     {
         memcpy(idx_list[idx_num], idx_name.vary_string, idx_name.vary_length);
         idx_list[idx_num][INDEX_LEN-1] = '\0';
@@ -329,7 +330,7 @@ void * activate_index(void *thr_id_ptr)
     isc_modify_dpb(&dpb, &dpb_length, isc_dpb_password, isc_password, strlen(isc_password));
 
     //Connect to database
-    if (isc_attach_database(db_status, 0, isc_database, &db, dpb_length, dpb))
+    if (isc_attach_database(db_status, strlen(isc_database), isc_database, &db, dpb_length, dpb))
     {
         isc_print_status(db_status);
         status[thr_id] = ERR_DB;
@@ -378,7 +379,7 @@ void * activate_index(void *thr_id_ptr)
 
         //start transaction
         trans = 0L;
-        if (isc_start_transaction(db_status, &trans, 1, &db, 5, isc_tpb))
+        if (isc_start_transaction(db_status, &trans, 1, &db, sizeof(isc_tpb), isc_tpb))
         {
             printf("Warning trouble on index %s\n", idx_list[idx_num_thread]);
             isc_print_status(db_status);
@@ -390,8 +391,7 @@ void * activate_index(void *thr_id_ptr)
         strcat(query, idx_list[idx_num_thread]);
         strcat(query, upd_str_template->post);
 
-        if (isc_dsql_exec_immed2(db_status, &db, &trans, 0, query, SQL_DIALECT_CURRENT,
-                                 NULL, NULL))
+        if (isc_dsql_exec_immed2(db_status, &db, &trans, strlen(query), query, SQL_DIALECT_CURRENT, NULL, NULL))
         {
             printf("Warning trouble on index %s\n", idx_list[idx_num_thread]);
             isc_print_status(db_status);
