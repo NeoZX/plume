@@ -1,7 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include <sysexits.h>
 #include <time.h>
 #include <getopt.h>
 #include <pthread.h>
@@ -22,6 +21,7 @@
 #define ERR_DB 1
 #define ERR_MUTEX 2
 #define ERR_ACT_IDX 3
+#define ERR_ARG 4
 
 #define SQL_VARCHAR(len) struct {short vary_length; char vary_string[(len)+1];}
 
@@ -477,17 +477,17 @@ int main(int argc, char *argv[])
     if (isc_database == NULL)
     {
         fprintf(stderr, "Database connection string not specified.\n");
-        exit(EX_USAGE);
+        exit(ERR_ARG);
     }
     if (isc_user == NULL)
     {
         fprintf(stderr, "Username not specified.\n");
-        exit(EX_USAGE);
+        exit(ERR_ARG);
     }
     if (isc_password == NULL)
     {
         fprintf(stderr, "Password not specified.\n");
-        exit(EX_USAGE);
+        exit(ERR_ARG);
     }
 
     //Check. Logging enabled
